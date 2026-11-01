@@ -1,0 +1,80 @@
+name: kalijy-bots
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes (GitHub may start it a few minutes late)
+  workflow_dispatch:
+    inputs:
+      bot:
+        description: "Run one bot now: support_inbox, order_watch, customer_followup, ads_monitor, daily_report or all"
+        required: false
+        default: ""
+
+concurrency:
+  group: kalijy-bots
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Restore bot memory
+        uses: actions/cache/restore@v4
+        with:
+          path: .state
+          key: state-${{ github.run_id }}
+          restore-keys: state-
+      - name: Run bots
+        run: python bots/main.py ${{ github.event.inputs.bot }}
+        env:
+          # --- secrets (Settings → Secrets and variables → Actions → Secrets)
+          SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
+          SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
+          SHOPIFY_ADMIN_TOKEN: ${{ secrets.SHOPIFY_ADMIN_TOKEN }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          IMAP_USER: ${{ secrets.IMAP_USER }}
+          IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
+          # --- settings (Settings → Secrets and variables → Actions → Variables)
+          SHOPIFY_SHOP: ${{ vars.SHOPIFY_SHOP }}
+          ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
+          META_AD_ACCOUNT_ID: ${{ vars.META_AD_ACCOUNT_ID }}
+          GROK_MODEL: ${{ vars.GROK_MODEL }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          AI_MODEL: ${{ vars.AI_MODEL }}
+          REPORT_LANGUAGE: ${{ vars.REPORT_LANGUAGE }}
+          REPORT_HOUR: ${{ vars.REPORT_HOUR }}
+          BOT_TIMEZONE: ${{ vars.BOT_TIMEZONE }}
+          DRY_RUN: ${{ vars.DRY_RUN }}
+          AUTO_SEND_CATEGORIES: ${{ vars.AUTO_SEND_CATEGORIES }}
+          SUPPORT_AUTO_SEND_ENABLED: ${{ vars.SUPPORT_AUTO_SEND_ENABLED }}
+          IMAP_HOST: ${{ vars.IMAP_HOST }}
+          SUPPORT_ONLY_TO: ${{ vars.SUPPORT_ONLY_TO }}
+          SUPPORT_FROM_NAME: ${{ vars.SUPPORT_FROM_NAME }}
+          SUPPORT_REPLY_FROM: ${{ vars.SUPPORT_REPLY_FROM }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          META_KILL_SPEND: ${{ vars.META_KILL_SPEND }}
+          META_MIN_CTR: ${{ vars.META_MIN_CTR }}
+          META_DAILY_SPEND_CAP: ${{ vars.META_DAILY_SPEND_CAP }}
+          META_TARGET_ROAS: ${{ vars.META_TARGET_ROAS }}
+          META_AUTO_PAUSE: ${{ vars.META_AUTO_PAUSE }}
+          FOLLOWUP_ENABLED: ${{ vars.FOLLOWUP_ENABLED }}
+          FOLLOWUP_UPDATE_DAYS: ${{ vars.FOLLOWUP_UPDATE_DAYS }}
+          FOLLOWUP_LATE_EXTRA_BDAYS: ${{ vars.FOLLOWUP_LATE_EXTRA_BDAYS }}
+          MAX_CHARGERS_PER_ORDER: ${{ vars.MAX_CHARGERS_PER_ORDER }}
+      - name: Save bot memory
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .state
+          key: state-${{ github.run_id }}
