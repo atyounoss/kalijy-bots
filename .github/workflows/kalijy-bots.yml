@@ -29,7 +29,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .state
-          key: state-${{ github.run_id }}
+          key: state-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: state-
       - name: Run bots
         run: python bots/main.py ${{ github.event.inputs.bot }}
@@ -77,4 +77,4 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .state
-          key: state-${{ github.run_id }}
+          key: state-${{ github.run_id }}-${{ github.run_attempt }}
