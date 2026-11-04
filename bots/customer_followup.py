@@ -266,7 +266,7 @@ def run():
                 vals.update(info)
                 vals["status"] = T[lang]["status"].get(info.get("status"), T[lang]["status"]["_"])
             subj, body = T[lang][stage]
-            msg = mailer.build(o["email"], subj.format(**vals), body.format(**vals) + "\n\n—\n" + T[lang]["footer"])
+            msg = mailer.build(o["email"], ("[TEST] " if o.get("test") else "") + subj.format(**vals), body.format(**vals) + "\n\n—\n" + T[lang]["footer"])
             try:
                 ok = mailer.send(msg)
             except Exception as e:

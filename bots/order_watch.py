@@ -28,7 +28,8 @@ def describe(o):
                       for li in o["lineItems"]["nodes"])
     p = o["totalPriceSet"]["presentmentMoney"]
     country = (o.get("shippingAddress") or {}).get("countryCodeV2", "?")
-    return f'{order_admin_link(o)} · {country} · {money(p["amount"], p["currencyCode"])}\n   {esc(items)}'
+    tag = "🧪 <b>TEST ORDER</b> (Shopify test mode, no money taken): do NOT pay it in MutualDropshipping, delete it there\n   " if o.get("test") else ""
+    return tag + f'{order_admin_link(o)} · {country} · {money(p["amount"], p["currencyCode"])}\n   {esc(items)}'
 
 
 def problems(o, now):

@@ -121,7 +121,7 @@ query($q:String!, $after:String){
   orders(first:100, after:$after, query:$q, sortKey:CREATED_AT, reverse:true){
     pageInfo{ hasNextPage endCursor }
     nodes{
-      id name createdAt cancelledAt email customerLocale
+      id name createdAt cancelledAt email customerLocale test
       displayFinancialStatus displayFulfillmentStatus
       totalPriceSet{ shopMoney{ amount currencyCode } presentmentMoney{ amount currencyCode } }
       totalRefundedSet{ shopMoney{ amount currencyCode } }

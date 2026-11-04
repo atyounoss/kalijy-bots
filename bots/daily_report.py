@@ -51,8 +51,8 @@ def run():
     yday = today - dt.timedelta(days=1)
     s, e = local_day_bounds(yday)
     s7, _ = local_day_bounds(yday - dt.timedelta(days=6))
-    y = summarize(fetch_orders(f"created_at:>='{s}' created_at:<'{e}'"))
-    week = summarize(fetch_orders(f"created_at:>='{s7}' created_at:<'{e}'"))
+    y = summarize(fetch_orders(f"created_at:>='{s}' created_at:<'{e}' test:false"))
+    week = summarize(fetch_orders(f"created_at:>='{s7}' created_at:<'{e}' test:false"))
     issues = order_watch.open_issues(order_watch.recent_orders(), utcnow())
 
     meta = None
