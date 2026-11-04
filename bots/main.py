@@ -15,6 +15,7 @@ import state
 from common import TZ, env, esc, log, notify
 
 BOTS = ["support_inbox", "order_watch", "customer_followup", "ads_monitor", "daily_report"]
+TOOLS = ["maildiag"]
 
 
 def due(now_local):
@@ -31,7 +32,7 @@ def due(now_local):
 def main():
     arg = sys.argv[1] if len(sys.argv) > 1 else ""
     now_local = dt.datetime.now(TZ)
-    jobs = BOTS if arg == "all" else [arg] if arg in BOTS else due(now_local)
+    jobs = BOTS if arg == "all" else [arg] if arg in BOTS + TOOLS else due(now_local)
     failed = []
     for name in jobs:
         log.info("running %s", name)
