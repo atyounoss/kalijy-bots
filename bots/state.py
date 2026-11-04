@@ -33,6 +33,14 @@ def mark(key):
     _load()["seen"][key] = time.time()
 
 
+def get(key, default=None):
+    return _load().setdefault("kv", {}).get(key, default)
+
+
+def put(key, value):
+    _load().setdefault("kv", {})[key] = value
+
+
 def last_run(job):
     return _load()["last_run"].get(job)
 

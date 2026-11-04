@@ -18,6 +18,7 @@ import time
 from email.header import decode_header, make_header
 from email.message import EmailMessage
 
+import mailer
 import state
 from common import DRY_RUN, env, env_bool, esc, fetch_orders, grok, grok_json, log, notify, tracking_numbers  # grok = the configured AI
 
@@ -183,8 +184,25 @@ def run():
     if user.lower().endswith(("@gmail.com", "@googlemail.com")) and not env("SUPPORT_ONLY_TO"):
         log.warning("support_inbox: personal Gmail without SUPPORT_ONLY_TO: refusing to touch your private mail")
         return
-    M = imaplib.IMAP4_SSL(IMAP_HOST)
-    M.login(user, env("IMAP_PASSWORD"))
+    try:
+        M = mailer.imap_connect()
+    except mailer.NET_ERRORS as e:
+        # Mail servers hiccup now and then: stay quiet unless it lasts ~1.5 h (3 runs in a row),
+        # then alert once, and at most every 12 h while it stays down.
+        streak = state.get("imap_fail_streak", 0) + 1
+        state.put("imap_fail_streak", streak)
+        log.warning("support_inbox: mailbox unreachable (%s), failure %d in a row", e, streak)
+        last = state.get("imap_fail_alerted", 0)
+        if streak >= 3 and time.time() - last > 12 * 3600:
+            state.put("imap_fail_alerted", time.time())
+            notify(f"<b>⚠️ Support inbox</b>\nThe mailbox {esc(IMAP_HOST)} has been unreachable for "
+                   f"{streak} runs in a row (about {streak // 2} h). Last error: {esc(str(e))[:200]}\n"
+                   "Customer emails are NOT being answered until it comes back. Check Spacemail status "
+                   "or that the mailbox password has not changed.")
+        return
+    if state.get("imap_fail_streak", 0):
+        state.put("imap_fail_streak", 0)
+        state.put("imap_fail_alerted", 0)
     gmail = "X-GM-EXT-1" in M.capabilities
     M.select("INBOX")
     only_to = env("SUPPORT_ONLY_TO")  # e.g. support@kalijy.com: ignore everything not sent to it
@@ -241,7 +259,7 @@ def run():
                     if risky and cat in AUTO_SEND:
                         report.append(f"⚠️ reply held as draft, it promised something (\"{esc(risky.group(0))}\")")
                     if auto:
-                        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as s:
+                        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=mailer.NET_TIMEOUT) as s:
                             s.login(user, env("IMAP_PASSWORD"))
                             s.send_message(out)
                         if not gmail:  # Gmail files sent mail itself; other providers need a copy in Sent

@@ -12,6 +12,25 @@ SMTP_HOST = env("SMTP_HOST", "mail.spacemail.com")
 SMTP_PORT = int(env("SMTP_PORT", "465"))
 
 
+NET_TIMEOUT = 30  # seconds; a hung mail server must never stall the whole run
+NET_ERRORS = (OSError, imaplib.IMAP4.abort, smtplib.SMTPServerDisconnected, smtplib.SMTPConnectError)
+
+
+def imap_connect(tries=3):
+    """Log in to the mailbox, retrying short network glitches (SSL EOF, timeouts, resets)."""
+    user, pwd = env("IMAP_USER", required=True), env("IMAP_PASSWORD", required=True)
+    for i in range(tries):
+        try:
+            M = imaplib.IMAP4_SSL(IMAP_HOST, timeout=NET_TIMEOUT)
+            M.login(user, pwd)
+            return M
+        except NET_ERRORS as e:
+            if i == tries - 1:
+                raise
+            log.warning("mailbox connection failed (%s), retrying", e)
+            time.sleep(5 * (i + 1))
+
+
 def sender_address():
     return env("SUPPORT_REPLY_FROM") or env("SUPPORT_ONLY_TO") or env("IMAP_USER") or "support@kalijy.com"
 
@@ -38,13 +57,20 @@ def send(msg):
         print(f"---- EMAIL (not sent) to {msg['To']} ----\nSubject: {msg['Subject']}\n{msg.get_content()}\n----")
         return False
     user, pwd = env("IMAP_USER", required=True), env("IMAP_PASSWORD", required=True)
-    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as s:
-        s.login(user, pwd)
-        s.send_message(msg)
+    for i in range(3):
+        try:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=NET_TIMEOUT) as s:
+                s.login(user, pwd)
+                s.send_message(msg)
+            break
+        except NET_ERRORS as e:  # connection never got to sending: safe to retry
+            if i == 2 or isinstance(e, smtplib.SMTPResponseException):
+                raise
+            log.warning("SMTP connection failed (%s), retrying", e)
+            time.sleep(5 * (i + 1))
     if "gmail" not in IMAP_HOST:  # Gmail files sent mail itself
         try:
-            M = imaplib.IMAP4_SSL(IMAP_HOST)
-            M.login(user, pwd)
+            M = imap_connect(tries=2)
             M.append(_sent_folder(M), "\\Seen", imaplib.Time2Internaldate(time.time()), msg.as_bytes())
             M.logout()
         except Exception as e:  # the email is already sent; a missing Sent copy is not worth failing for
